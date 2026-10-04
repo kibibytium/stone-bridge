@@ -1,6 +1,13 @@
 [package]
 name = "stone-bridge"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2024"
 
+
+[[bin]]
+name = "stonebridge"
+path = "src/main.rs"
+
 [dependencies]
+chrono = { version = "0.4.42", default-features = false, features = ["std", "now", "clock"] }
+tokio = { version = "1",  features = ["macros", "rt-multi-thread"]  }
