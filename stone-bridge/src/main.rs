@@ -1,9 +1,14 @@
 use std::sync::Arc;
 use crate::config::Config;
 use crate::logger::{log, ConsoleAndFileLogger, LogLevel};
+use crate::mail_dispatcher::SocketMailer;
 
 mod logger;
 mod config;
+mod mail_dispatcher;
+mod error;
+pub const DEFAULT_SOCKET_PATH: &str = "/tmp/stone-bridge.sock";
+
 
 #[tokio::main]
 async fn main() {
@@ -19,5 +24,8 @@ async fn main() {
     }
 
     log::info!("Loaded config and initialized logger");
+
+    let mailer = SocketMailer::new(DEFAULT_SOCKET_PATH).expect("failed to build sender client");
+
 
 }
