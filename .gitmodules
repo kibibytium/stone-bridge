@@ -1,0 +1,3 @@
+[submodule "tuta-bridge/tutanota"]
+	path = tuta-bridge/tutanota
+	url = git@github.com:tutao/tutanota.git
