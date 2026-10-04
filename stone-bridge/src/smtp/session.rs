@@ -1,0 +1,267 @@
+use crate::logger::log;
+use crate::smtp::command::Command;
+use crate::smtp::Envelope;
+use crate::smtp::error::SmtpError;
+
+#[derive(Debug, PartialEq)]
+enum State {
+    /// Greeting sent; waiting for HELO/EHLO.
+    Connected,
+    /// HELO/EHLO received; no mail transaction in progress.
+    Greeted,
+    /// MAIL accepted; waiting for the first RCPT.
+    Mail { from: String },
+    /// RCPT
+    Recipients {
+        from: String,
+        recipients: Vec<String>,
+    },
+    /// Inside DATA, collecting lines until `.`.
+    Data(Envelope),
+    /// The message was handed to the MIME parser
+    MimeParsing,
+    Awaiting,
+}
+
+pub struct Session {
+    hostname: String,
+    state: State,
+    envelopes: Vec<Envelope>,
+}
+
+impl Session {
+    pub fn new(hostname: String) -> Self {
+        Self {
+            hostname,
+            state: State::Connected,
+            envelopes: Vec::new(),
+        }
+    }
+
+    /// The 220 greeting sent when the connection opens.
+    pub fn greeting(&self) -> Reply {
+        //TODO Greeting configurable
+        Reply::new(220, format!("{} ESMTP", self.hostname))
+    }
+
+    /// True when the next line is an SMTP command, false while inside DATA
+    pub fn expects_command(&self) -> bool {
+        !matches!(
+            self.state,
+            State::Data {..}
+        )
+    }
+
+    pub fn handle_line(&mut self, line: &str) -> Action {
+        match std::mem::replace(&mut self.state, State::Awaiting) {
+            State::Awaiting => {
+                log::error!("Got Awaiting State twice in a row.");
+                Action::Reply(Reply::new(
+                    451,
+                    "4.3.0 Previous message still being processed",
+                ))
+            },
+
+            State::Data(mut envelope) => {
+
+                if line == ".\r\n" {
+                    return Action::Message(envelope);
+                }
+
+                envelope.lines.push(line.to_string());
+                self.state = State::Data(envelope);
+                Action::Continue
+            }
+
+            state => {
+                // reset the state to what it was
+                self.state = state;
+                let command_result: Result<Command, SmtpError> =line.try_into();
+                match command_result {
+                    Ok(command) => {
+                        self.handle_command(command)
+                    }
+                    Err(e) => {
+                        Action::Reply(Reply::new(501,format!("5.4.4 Syntax error: {:?}", e)))
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn handle_command(&mut self, command: Command) -> Action {
+
+        let reply: Reply = match command {
+            Command::Helo(_) => {
+                self.state = State::Greeted;
+                Reply::new(250, self.hostname.clone())
+            },
+            Command::Ehlo(host) => {
+                self.state = State::Greeted;
+                self.ehlo_reply(&host)
+            },
+            Command::Mail { from } => {
+                match self.state {
+                    State::Greeted => {
+                        self.state = State::Mail { from };
+                        ok()
+                    },
+                    State::Connected => {
+                        bad_sequence("Expected RCPT before MAIL")
+
+                    }
+                    _ => bad_sequence("Bad Sequence of Commands")
+                }
+            }
+            Command::Quit => {
+                return Action::Close(Reply::new(
+                    221,
+                    format!(
+                        "2.0.0 {} Service closing transmission channel",
+                        self.hostname
+                    ),
+                ));
+            }
+            Command::Data => match std::mem::replace(&mut self.state, State::Greeted) {
+                State::Recipients { from, recipients } => {
+                    self.state = State::Data(Envelope {from, recipients, lines:Vec::new()});
+
+                    Reply::new(354, "Start mail input; end with <CRLF>.<CRLF>")
+                }
+
+                state => {
+                    self.state = state;
+                    bad_sequence("Need RCPT before DATA")
+                }
+            },
+
+            Command::Rcpt { to } => {
+                match &mut self.state {
+                    State::Mail { from } => {
+                        let from = from.clone();
+                        self.state = State::Recipients { from, recipients: vec![to]};
+                        ok()
+                    }
+                    State::Recipients { from, recipients } => {
+                        recipients.push(to.clone());
+                        ok()
+                    }
+                    _ => {
+                        bad_sequence("Need Mail before RCPT")
+                    }
+                }
+
+            }
+            Command::Unknown(verb) => {
+                Reply::new(502, format!("5.5.2 Command not implemented: {}", verb))
+            }
+        };
+        Action::Reply(reply)
+    }
+
+    pub fn ehlo_reply(&self, host: &str) -> Reply {
+        Reply::multiline(
+            250,
+            vec![
+                format!("{} greets {}", self.hostname, host),
+                "SIZE 36700160".into(),
+                "ETRN".into(),
+                "ENHANCEDSTATUSCODES".into(),
+                "8BITMIME".into(),
+                "AUTH PLAIN LOGIN".into(),
+                "DSN".into(),
+            ],
+        )
+    }
+
+}
+
+fn ok() -> Reply {
+    Reply::new(250, "2.0.0 OK")
+}
+
+fn bad_sequence(text: &str) -> Reply {
+    Reply::new(503, format!("5.5.1 {}", text))
+}
+
+
+
+/// SMTP Reply
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Reply {
+    pub code: u16,
+    pub lines: Vec<String>,
+}
+
+impl Reply {
+    pub fn new(code: u16, text: impl Into<String>) -> Self {
+        Self {
+            code,
+            lines: vec![text.into()],
+        }
+    }
+
+    pub fn multiline(code: u16, lines: Vec<String>) -> Self {
+        debug_assert!(!lines.is_empty());
+        Self { code, lines }
+    }
+
+    /// Wire format: `250-first\r\n250-second\r\n250 last\r\n`.
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut out = String::new();
+        let last = self.lines.len().saturating_sub(1);
+        for (i, line) in self.lines.iter().enumerate() {
+            let sep = if i == last { ' ' } else { '-' };
+            out.push_str(&format!("{}{}{}\r\n", self.code, sep, line));
+        }
+        out.into_bytes()
+    }
+}
+
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Action {
+    /// Write the reply and keep reading.
+    Reply(Reply),
+    /// Write the reply and close the connection.
+    Close(Reply),
+    /// A message is complete.
+    Message(Envelope),
+    /// The line was consumed without a reply (a DATA content line).
+    Continue,
+}
+
+
+#[cfg(test)]
+mod tests{
+    use crate::smtp::session::{Action, Reply, Session};
+
+    #[test]
+    fn reply_wire_format() {
+        assert_eq!(Reply::new(250, "OK").to_bytes(), b"250 OK\r\n");
+        assert_eq!(
+            Reply::multiline(250, vec!["a".into(), "b".into(), "c".into()]).to_bytes(),
+            b"250-a\r\n250-b\r\n250 c\r\n"
+        );
+    }
+
+    #[test]
+    fn greeting_and_ehlo_use_hostname() {
+        let mut s = Session::new("mx.example".to_string());
+        assert_eq!(
+            s.greeting().to_bytes(),
+            b"220 mx.example ESMTP\r\n"
+        );
+        match s.handle_line("EHLO c\r\n") {
+            Action::Reply(r) => {
+                assert_eq!(r.code, 250);
+                assert_eq!(r.lines[0], "mx.example greets c");
+                assert!(r.lines.contains(&"AUTH PLAIN LOGIN".to_string()));
+            }
+            other => {
+                eprint!("{:?}", other);
+                panic!("{:?}", other)
+            },
+        }
+    }
+}
