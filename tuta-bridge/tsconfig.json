@@ -1,0 +1,56 @@
+{
+	"compilerOptions": {
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
+		"declaration": false,
+		"noEmit": false,
+		"noImplicitAny": false,
+		"noImplicitThis": false,
+		"strictPropertyInitialization": false,
+		"strictBindCallApply": false,
+		"outDir": "build",
+		"resolveJsonModule": true,
+		"sourceMap": false,
+		"rootDir": "",
+		"paths": {
+			"@tutao/utils": ["./tutanota/src/platform-kit/utils"],
+			"@tutao/crypto": ["./tutanota/src/platform-kit/crypto"],
+			"@tutao/crypto/error": ["./tutanota/src/platform-kit/crypto/error"],
+			"@tutao/usagetests": ["./tutanota/src/usagetests"],
+			"@tutao/mimimi": ["./tutanota/src/app-kit/mimimi"],
+			"@tutao/mimimi/types": ["./tutanota/src/app-kit/mimimi/napi-out/binding.d.ts"],
+			"@tutao/http-client": ["./tutanota/src/platform-kit/http-client"],
+			"@tutao/http-client/error": ["./tutanota/src/platform-kit/http-client/error.ts"],
+			"@tutao/rest-client": ["./tutanota/src/platform-kit/rest-client"],
+			"@tutao/rest-client/types": ["./tutanota/src/platform-kit/rest-client/types.ts"],
+			"@tutao/rest-client/error": ["./tutanota/src/platform-kit/rest-client/error.ts"],
+			"@tutao/app-env": ["./tutanota/src/platform-kit/app-env"],
+			"@tutao/meta": ["./tutanota/src/platform-kit/meta"],
+			"@tutao/entities/accounting": ["./tutanota/src/entities/accounting"],
+			"@tutao/entities/base": ["./tutanota/src/entities/base"],
+			"@tutao/entities/drive": ["./tutanota/src/entities/drive"],
+			"@tutao/entities/gossip": ["./tutanota/src/entities/gossip"],
+			"@tutao/entities/monitor": ["./tutanota/src/entities/monitor"],
+			"@tutao/entities/storage": ["./tutanota/src/entities/storage"],
+			"@tutao/entities/sys": ["./tutanota/src/entities/sys"],
+			"@tutao/entities/tutanota": ["./tutanota/src/entities/tutanota"],
+			"@tutao/entities/usage": ["./tutanota/src/entities/usage"],
+			"@tutao/instance-pipeline": ["./tutanota/src/platform-kit/instance-pipeline"],
+			"@tutao/network/types": ["./tutanota/src/platform-kit/network/types.ts"],
+			"@tutao/native-bridge/generatedIpc/types": [
+				"./tutanota/src/app-kit/native-bridge/common/generatedipc/types/index.d.ts"
+			],
+			"@tutao/native-bridge/generatedIpc/enums": [
+				"./tutanota/src/app-kit/native-bridge/common/generatedipc/types/enums.ts"
+			],
+			"@tutao/native-bridge/generatedIpc/dispatchers": [
+				"./tutanota/src/app-kit/native-bridge/common/generatedipc/dispatchers/index.ts"
+			]
+		}
+	},
+	"references": [
+		{
+			"path": "./tutanota/tsconfig.json"
+		},
+	]
+}

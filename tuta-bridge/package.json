@@ -1,0 +1,6 @@
+{
+  "devDependencies": {
+    "rolldown": "^1.2.12",
+    "xhr2": "^0.2.1"
+  }
+}
