@@ -1,13 +1,14 @@
+use crate::logger::log;
+use crate::mail_dispatcher::Mailer;
+use crate::smtp::session::{Action, MessageOutcome, Reply, Session};
+use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;
-use crate::logger::log;
-use crate::mail_dispatcher::Mailer;
-use crate::smtp::session::{Action, Reply, Session};
 
 mod command;
-mod session;
 mod error;
+mod session;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Envelope {
@@ -15,7 +16,7 @@ pub struct Envelope {
     pub recipients: Vec<String>,
     /// Message lines exactly as received, each with its line ending. The
     /// terminating `.` line is not included. Dot-stuffing is not removed yet.
-    pub lines: Vec<String>,
+    pub lines: Vec<u8>,
 }
 
 struct PendingMail {
@@ -81,13 +82,12 @@ impl<M: Mailer> TutaMailTransferAgent<M> {
                     break;
                 }
             }
-            let line = String::from_utf8_lossy(&raw);
+
             if session.expects_command() {
-                let line = line.trim();
-                log::debug!("{}", line);
+                log::debug!("{}", String::from_utf8_lossy(&raw));
             }
 
-            let reply = match session.handle_line(&line) {
+            let reply = match session.handle_line(&raw) {
                 Action::Continue => continue,
                 Action::Reply(reply) => reply,
                 Action::Close(reply) => {
@@ -95,7 +95,14 @@ impl<M: Mailer> TutaMailTransferAgent<M> {
                     break;
                 }
                 Action::Message(envelope) => {
-                    todo!()
+                    let outcome = match prepare_mail(envelope) {
+                        Ok(mail) => {
+                            pending.push(mail);
+                            MessageOutcome::Accepted
+                        }
+                        Err(reason) => MessageOutcome::PermanentFailure(reason),
+                    };
+                    session.finish_message(outcome)
                 }
             };
             if send(&mut writer, &reply).is_err() {
@@ -127,4 +134,15 @@ fn send(writer: &mut TcpStream, reply: &Reply) -> std::io::Result<()> {
         log::error!("Write error: {}", e);
     }
     result
+}
+
+/// Dumps the message to `mime.txt` and extracts subject and body.
+fn prepare_mail(envelope: Envelope) -> Result<PendingMail, String> {
+    //FIXME test if this writes utf8
+    match File::create("mime.txt").and_then(|mut f| f.write_all(&envelope.lines)) {
+        Ok(()) => log::debug!("Done reading DATA and wrote data to file."),
+        Err(e) => log::warning!("Could not write mime.txt: {}", e),
+    }
+
+    todo!("Refactoring Mime Parser")
 }

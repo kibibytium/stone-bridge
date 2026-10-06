@@ -52,7 +52,7 @@ impl Session {
         )
     }
 
-    pub fn handle_line(&mut self, line: &str) -> Action {
+    pub fn handle_line(&mut self, line: &[u8]) -> Action {
         match std::mem::replace(&mut self.state, State::Awaiting) {
             State::Awaiting => {
                 log::error!("Got Awaiting State twice in a row.");
@@ -64,11 +64,11 @@ impl Session {
 
             State::Data(mut envelope) => {
 
-                if line == ".\r\n" {
+                if line == b".\r\n" {
                     return Action::Message(envelope);
                 }
 
-                envelope.lines.push(line.to_string());
+                envelope.lines.extend_from_slice(line);
                 self.state = State::Data(envelope);
                 Action::Continue
             }
@@ -173,6 +173,18 @@ impl Session {
             ],
         )
     }
+    pub fn finish_message(&mut self, outcome: MessageOutcome) -> Reply {
+        self.state = State::Greeted;
+        match outcome {
+            MessageOutcome::Accepted => Reply::new(250, "2.0.0 Ok: Message queued"),
+            MessageOutcome::TemporaryFailure(reason) => {
+                Reply::new(451, format!("4.3.0 {}", reason))
+            }
+            MessageOutcome::PermanentFailure(reason) => {
+                Reply::new(554, format!("5.0.0 {}", reason))
+            }
+        }
+    }
 
 }
 
@@ -231,6 +243,16 @@ pub enum Action {
     Continue,
 }
 
+/// What the SMTP server replies after MIME parsing
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MessageOutcome {
+    Accepted,
+    /// The client may retry later (451).
+    TemporaryFailure(String),
+    /// The client must not retry (554).
+    PermanentFailure(String),
+}
+
 
 #[cfg(test)]
 mod tests{
@@ -252,7 +274,7 @@ mod tests{
             s.greeting().to_bytes(),
             b"220 mx.example ESMTP\r\n"
         );
-        match s.handle_line("EHLO c\r\n") {
+        match s.handle_line(b"EHLO c\r\n") {
             Action::Reply(r) => {
                 assert_eq!(r.code, 250);
                 assert_eq!(r.lines[0], "mx.example greets c");

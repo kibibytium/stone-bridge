@@ -14,11 +14,13 @@ pub enum Command {
     Unknown(String),
 }
 
-impl TryFrom<&str> for Command {
+impl TryFrom<&[u8]> for Command {
     type Error = SmtpError;
 
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
-        let s = s.trim();
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        let s = std::str::from_utf8(bytes)
+            .map_err(|_| SmtpError::CommandSyntaxError("Command is not valid UTF-8".to_string()))?
+            .trim();
         let (verb, args) = match s.split_once(|c: char| c.is_ascii_whitespace()) {
             Some((verb, args)) => (verb, args),
             None => (s, ""),

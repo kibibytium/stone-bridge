@@ -4,10 +4,14 @@ use std::{env, fs, panic};
 
 const LOG_LEVEL_KEY: &str = "LOG_LEVEL";
 const LOG_PATH_KEY: &str = "LOG_PATH";
+const HOSTNAME_KEY: &str = "HOSTNAME";
+const BIND_ADDRESS_KEY: &str = "BIND_ADDRESS";
 
 pub struct Config {
     pub log_level: String,
     pub log_path: PathBuf,
+    pub bind_address: String,
+    pub hostname: String,
 }
 impl Config {
     pub fn load() -> Self {
@@ -30,9 +34,19 @@ impl Config {
             .get(LOG_PATH_KEY)
             .map(PathBuf::from)
             .unwrap_or_else(|| Self::get_config_dir().join("log"));
+        let bind_address = config_map
+            .get(BIND_ADDRESS_KEY)
+            .map(|s| s.to_owned())
+            .unwrap_or_else(||"0.0.0.0:2525".to_string());
+        let hostname = config_map
+            .get(HOSTNAME_KEY)
+            .map(|s| s.to_owned())
+            .unwrap_or_else(||"localhost".to_string());
         Self {
             log_level,
             log_path,
+            hostname,
+            bind_address,
         }
     }
 

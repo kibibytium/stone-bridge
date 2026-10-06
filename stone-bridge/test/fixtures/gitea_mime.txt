@@ -1,0 +1,25 @@
+Date: Thu, 18 Sep 2025 23:57:02 +0200
+MIME-Version: 1.0
+Message-ID:
+ <autogen-123456789-123456789@server_name.net>
+Subject: Gitea Test Email!
+User-Agent: go-mail v0.6.2 // https://github.com/wneessen/go-mail
+X-Auto-Response-Suppress: All
+X-Mailer: go-mail v0.6.2 // https://github.com/wneessen/go-mail
+From: <email@example.com>
+To: <some-addresss@tutamail.com>
+Content-Type: multipart/alternative;
+ boundary=c10b0d112d42652d110f614d39904b218bd249bc2bea8fe60a6a8cc2cdb5
+
+--c10b0d112d42652d110f614d39904b218bd249bc2bea8fe60a6a8cc2cdb5
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=UTF-8
+
+Gitea Test Email!
+--c10b0d112d42652d110f614d39904b218bd249bc2bea8fe60a6a8cc2cdb5
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/html; charset=UTF-8
+
+Gitea Test Email!
+--c10b0d112d42652d110f614d39904b218bd249bc2bea8fe60a6a8cc2cdb5--
+.

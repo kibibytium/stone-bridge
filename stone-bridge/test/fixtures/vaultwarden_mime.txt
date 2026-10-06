@@ -1,0 +1,343 @@
+Message-ID: <123456789@server_name.net>
+To: some_address@server_name.net
+From: Vaultwarden <vaultwarden@server_name.net>
+Subject: Vaultwarden SMTP Test
+MIME-Version: 1.0
+Date: Sun, 21 Sep 2025 11:07:22 +0000
+Content-Type: multipart/alternative;
+ boundary="0nzJYn4VFgU25jBs4nJsFRwZfjURTbE5t1xI1xyN"
+
+--0nzJYn4VFgU25jBs4nJsFRwZfjURTbE5t1xI1xyN
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+This is a test email to verify the SMTP configuration for https://vault.=
+server_name.net.
+
+When you can read this email it is probably configured correctly.
+
+=3D=3D=3D
+Github: https://github.com/dani-garcia/vaultwarden
+--0nzJYn4VFgU25jBs4nJsFRwZfjURTbE5t1xI1xyN
+Content-Type: multipart/related;
+ boundary="IxhXSs89uTzjMH1vDPv62C9i3UyVSZEuuYW0HsfJ"
+
+--IxhXSs89uTzjMH1vDPv62C9i3UyVSZEuuYW0HsfJ
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.=
+w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns=3D"http://www.w3.org/1999/xhtml" xmlns=3D"http://www.w3.org/199=
+9/xhtml" style=3D"-webkit-font-smoothing: antialiased; -webkit-text-size-ad=
+just: none; box-sizing: border-box; color: #333; font-family: 'Helvetica Ne=
+ue', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 25px; marg=
+in: 0;">
+   <head>
+      <meta name=3D"viewport" content=3D"width=3Ddevice-width" />
+      <meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3DUTF=
+-8" />
+      <title>Vaultwarden</title>
+   </head>
+   <body style=3D"-webkit-font-smoothing: antialiased; -webkit-text-size-ad=
+just: none; height: 100%; line-height: 25px; width: 100% !important;" bgcol=
+or=3D"#f6f6f6">
+      <style type=3D"text/css">
+         body {
+         margin: 0;
+         font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+         box-sizing: border-box;
+         font-size: 16px;
+         color: #333;
+         line-height: 25px;
+         -webkit-font-smoothing: antialiased;
+         -webkit-text-size-adjust: none;
+         }
+         body * {
+         margin: 0;
+         font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+         box-sizing: border-box;
+         font-size: 16px;
+         color: #333;
+         line-height: 25px;
+         -webkit-font-smoothing: antialiased;
+         -webkit-text-size-adjust: none;
+         }
+         img {
+         max-width: 100%;
+         border: none;
+         }
+         body {
+         -webkit-font-smoothing: antialiased;
+         -webkit-text-size-adjust: none;
+         width: 100% !important;
+         height: 100%;
+         line-height: 25px;
+         }
+         body {
+         background-color: #f6f6f6;
+         }
+         @media only screen and (max-width: 600px) {
+         body {
+         padding: 0 !important;
+         }
+         .container {
+         padding: 0 !important;
+         width: 100% !important;
+         }
+         .container-table {
+         padding: 0 !important;
+         width: 100% !important;
+         }
+         .content {
+         padding: 0 0 10px 0 !important;
+         }
+         .content-wrap {
+         padding: 10px !important;
+         }
+         .invoice {
+         width: 100% !important;
+         }
+         .main {
+         border-right: none !important;
+         border-left: none !important;
+         border-radius: 0 !important;
+         }
+         .logo {
+         padding-top: 10px !important;
+         }
+         .footer {
+         margin-top: 10px !important;
+         }
+         .indented {
+         padding-left: 10px;
+         }
+         }
+      </style>
+      <table class=3D"body-wrap" cellpadding=3D"0" cellspacing=3D"0" style=
+=3D"-webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none; bo=
+x-sizing: border-box; color: #333; font-family: 'Helvetica Neue', Helvetica=
+, Arial, sans-serif; font-size: 16px; line-height: 25px; margin: 0; width: =
+100%;" bgcolor=3D"#f6f6f6">
+         <tr style=3D"-webkit-font-smoothing: antialiased; -webkit-text-siz=
+e-adjust: none; box-sizing: border-box; color: #333; font-family: 'Helvetic=
+a Neue', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 25px; =
+margin: 0;">
+            <td valign=3D"middle" class=3D"aligncenter middle logo" style=
+=3D"-webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none; bo=
+x-sizing: border-box; color: #333; font-family: 'Helvetica Neue', Helvetica=
+, Arial, sans-serif; font-size: 16px; line-height: 25px; margin: 0; padding=
+: 20px 0 10px;" align=3D"center">
+                <img src=3D"cid:logo-gray.png" alt=3D"Vaultwarden" width=3D=
+"190" height=3D"39" style=3D"-webkit-font-smoothing: antialiased; -webkit-t=
+ext-size-adjust: none; border: none; box-sizing: border-box; color: #333; f=
+ont-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px=
+; line-height: 25px; margin: 0; max-width: 100%;" />
+            </td>
+         </tr>
+         <tr style=3D"-webkit-font-smoothing: antialiased; -webkit-text-siz=
+e-adjust: none; box-sizing: border-box; color: #333; font-family: 'Helvetic=
+a Neue', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 25px; =
+margin: 0;">
+            <td class=3D"container" align=3D"center" style=3D"-webkit-font-=
+smoothing: antialiased; -webkit-text-size-adjust: none; box-sizing: border-=
+box; clear: both !important; color: #333; display: block !important; font-f=
+amily: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; lin=
+e-height: 25px; margin: 0 auto; max-width: 600px !important; width: 600px;"=
+ valign=3D"top">
+               <table cellpadding=3D"0" cellspacing=3D"0" class=3D"containe=
+r-table" style=3D"-webkit-font-smoothing: antialiased; -webkit-text-size-ad=
+just: none; box-sizing: border-box; clear: both !important; color: #333; di=
+splay: block !important; font-family: 'Helvetica Neue', Helvetica, Arial, s=
+ans-serif; font-size: 16px; line-height: 25px; margin: 0 auto; max-width: 6=
+00px !important; width: max-content;">
+                  <tr style=3D"-webkit-font-smoothing: antialiased; -webkit=
+-text-size-adjust: none; box-sizing: border-box; color: #333; font-family: =
+'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; line-heigh=
+t: 25px; margin: 0;">
+                     <td class=3D"content" align=3D"center" style=3D"-webki=
+t-font-smoothing: antialiased; -webkit-text-size-adjust: none; box-sizing: =
+border-box; color: #333; display: block; font-family: 'Helvetica Neue', Hel=
+vetica, Arial, sans-serif; font-size: 0; line-height: 0; margin: 0 auto; ma=
+x-width: 600px; padding-bottom: 20px;" valign=3D"top">
+                        <table class=3D"main" width=3D"100%" cellpadding=3D=
+"0" cellspacing=3D"0" style=3D"font-family: 'Helvetica Neue', Helvetica, Ar=
+ial, sans-serif; box-sizing: border-box; font-size: 16px; color: #333; line=
+-height: 25px; -webkit-font-smoothing: antialiased; margin: 0; -webkit-text=
+-size-adjust: none; border: 1px solid #e9e9e9; border-radius: 3px;" bgcolor=
+=3D"white">
+                           <tr style=3D"margin: 0; font-family: 'Helvetica =
+Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 16p=
+x; color: #333; line-height: 25px; -webkit-font-smoothing: antialiased; -we=
+bkit-text-size-adjust: none;">
+                              <td class=3D"content-wrap" style=3D"font-fami=
+ly: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box;=
+ font-size: 16px; color: #333; line-height: 25px; margin: 0; -webkit-font-s=
+moothing: antialiased; padding: 20px; -webkit-text-size-adjust: none;" vali=
+gn=3D"top">
+<table width=3D"100%" cellpadding=3D"0" cellspacing=3D"0" style=3D"margin: =
+0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing:=
+ border-box; font-size: 16px; color: #333; line-height: 25px; -webkit-font-=
+smoothing: antialiased; -webkit-text-size-adjust: none;">
+   <tr style=3D"margin: 0; font-family: 'Helvetica Neue', Helvetica, Arial,=
+ sans-serif; box-sizing: border-box; font-size: 16px; color: #333; line-hei=
+ght: 25px; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: n=
+one;">
+      <td class=3D"content-block" style=3D"font-family: 'Helvetica Neue', H=
+elvetica, Arial, sans-serif; box-sizing: border-box; font-size: 16px; color=
+: #333; line-height: 25px; margin: 0; -webkit-font-smoothing: antialiased; =
+padding: 0 0 10px; -webkit-text-size-adjust: none; text-align: center;" val=
+ign=3D"top" align=3D"center">
+         This is a test email to verify the SMTP configuration for <a href=
+=3D"https://vault.server_name.net">https://vault.server_name.net</a>.
+      </td>
+   </tr>
+   <tr style=3D"margin: 0; font-family: 'Helvetica Neue', Helvetica, Arial,=
+ sans-serif; box-sizing: border-box; font-size: 16px; color: #333; line-hei=
+ght: 25px; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: n=
+one;">
+      <td class=3D"content-block last" style=3D"font-family: 'Helvetica Neu=
+e', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 16px; =
+color: #333; line-height: 25px; margin: 0; -webkit-font-smoothing: antialia=
+sed; padding: 0; -webkit-text-size-adjust: none; text-align: center;" valig=
+n=3D"top" align=3D"center">
+         When you can read this email it is probably configured correctly.
+      </td>
+   </tr>
+</table>
+                           </td>
+                        </tr>
+                        </table>
+                     </td>
+                  </tr>
+               </table>
+
+               <table class=3D"footer" cellpadding=3D"0" cellspacing=3D"0" =
+width=3D"100%" style=3D"-webkit-font-smoothing: antialiased; -webkit-text-s=
+ize-adjust: none; box-sizing: border-box; clear: both; color: #999; font-fa=
+mily: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 12px; line=
+-height: 20px; margin: 0; width: 100%;">
+                  <tr style=3D"-webkit-font-smoothing: antialiased; -webkit=
+-text-size-adjust: none; box-sizing: border-box; color: #333; font-family: =
+'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; line-heigh=
+t: 25px; margin: 0;">
+                     <td class=3D"aligncenter social-icons" align=3D"center=
+" style=3D"-webkit-font-smoothing: antialiased; -webkit-text-size-adjust: n=
+one; box-sizing: border-box; color: #999; font-family: 'Helvetica Neue', He=
+lvetica, Arial, sans-serif; font-size: 12px; line-height: 20px; margin: 0; =
+padding: 5px 0 20px 0;" valign=3D"top">
+                        <table cellpadding=3D"0" cellspacing=3D"0" style=3D=
+"-webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none; box-s=
+izing: border-box; color: #333; font-family: 'Helvetica Neue', Helvetica, A=
+rial, sans-serif; font-size: 16px; line-height: 25px; margin: 0 auto;">
+                           <tr style=3D"-webkit-font-smoothing: antialiased=
+; -webkit-text-size-adjust: none; box-sizing: border-box; color: #333; font=
+-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; l=
+ine-height: 25px; margin: 0;">
+                                 <td style=3D"-webkit-font-smoothing: antia=
+liased; -webkit-text-size-adjust: none; box-sizing: border-box; color: #999=
+; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 1=
+2px; line-height: 20px; margin: 0; padding: 0 10px;" valign=3D"top"><a href=
+=3D"https://github.com/dani-garcia/vaultwarden" target=3D"_blank" style=3D"=
+-webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none; box-si=
+zing: border-box; color: #999; font-family: 'Helvetica Neue', Helvetica, Ar=
+ial, sans-serif; font-size: 12px; line-height: 20px; margin: 0; text-decora=
+tion: underline;"><img src=3D"cid:mail-github.png" alt=3D"GitHub" width=3D"=
+30" height=3D"30" style=3D"-webkit-font-smoothing: antialiased; -webkit-tex=
+t-size-adjust: none; border: none; box-sizing: border-box; color: #333; fon=
+t-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; =
+line-height: 25px; margin: 0; max-width: 100%;" /></a></td>
+                           </tr>
+                        </table>
+                     </td>
+                  </tr>
+               </table>
+
+            </td>
+         </tr>
+      </table>
+   </body>
+</html>
+--IxhXSs89uTzjMH1vDPv62C9i3UyVSZEuuYW0HsfJ
+Content-ID: <logo-gray.png>
+Content-Disposition: inline
+Content-Type: image/png
+Content-Transfer-Encoding: base64
+
+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
+AAAAAElFTkSuQmCC
+--IxhXSs89uTzjMH1vDPv62C9i3UyVSZEuuYW0HsfJ
+Content-ID: <mail-github.png>
+Content-Disposition: inline
+Content-Type: image/png
+Content-Transfer-Encoding: base64
+
+iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAABm1BMVEUAAACZmZmZmZmZmZmZmZmZ
+mZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZ
+mZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZ
+mZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZ
+mZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZ
+mZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZ
+mZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZ
+mZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZll/aOX
+AAAAiHRSTlMAAQIDBAUICQsODxAREhMUFRYXGRocHR8gISMkJSYnKistLi8wMTI0NTY4Ojs8PT4/
+QEFER0pLTU5PUFFUVVldXl9hYmNkZmlrbG1zdHd5fn+Ag4aIiYuMjo+RlJWXmJudnqKjpaqrra+w
+tLW5vsDFx8zOz9HT1dfZ2tze4uTm6e3v8fX3+fv9ycTzRAAAArpJREFUeNqt1WO/7TgYhvEr7T62
+bdu2bdu2tY32/tjzW0jadKGZmfN/HecBzZmxK04+ePO1r+/rmwcnV4w1BIsW30vlSe8tiQgx5kqi
+JpIrY8qn3lJLt9pPj86qrbMRLU3/qRI/p9HCUQU4QjPmuoJcMzSIXyjQ85gC81LBnht8NxROV/Ec
+V1H4q81U3Zo5+7+rhQ+7Zq5W3TSc6LdqvgNMu6cmbk8G+KaaHxHWedUdpWrcayl5d+nQtk2bth26
+9C6R3kyk6rDqzlI3TtZK6uaNI2fcfOpWyLJxflfWNEpMk3WruLFmUWKmCltfl7OcEsvkXAGIEzkX
+KHFezlAELFXmISXuK7MEeCCnaxglhnXJuQcm9dYqs1hOahgn5xMBPskZyyo5WwiwRc4KTssZRYDR
+ck7xSA5B5DzgraxOgnTJesN3WR8I8lHWV/pl/SbIH1l9DMoaIkgia5BuOYYARk4XX+SMo5wfVI/l
+rCPAWjmPOCvnFgGuyTnDZjnpMEpFQ3I2MkWZPZTaqsxkolTOwHBKdPTKSSJ4qswTQ1vmkTKPgY3K
+uWNow9xTzgZgmPLej6alsR+Uk3YA3FbFw8u/VZGeHUFTI8+nyrtJxWRJSoYxbGqPqp6vH2vwmHGb
+XqpgIlXPJenjKIbxS9bn4bk9v6rRM2omqCKZwcRJsnaTs1uNxlN3URX9wzm+L2sHzcKqWW+JO1Vx
+j5hzNuY9j1XQGePMto1v+fSFbxJ9OzkazzEVzCbnoCquAUsXMY+DI/DslO9Asw42l4qZRPi2yXMf
+n3klSckGMi0nvzIUxK9V8ePIqpkTJs2fgGe7cl7HNIgeK7Oj9Z0fRzRzQs5OaBElJ2lhQY8XYJk9
+qutZSEvDrjQvSHtVc3UY7Ux8poq9ePap4vkkyky8mkgr8ayS0msTCREvW0LBkuUd/GX/AMEwIhi5
+wxyfAAAAAElFTkSuQmCC
+--IxhXSs89uTzjMH1vDPv62C9i3UyVSZEuuYW0HsfJ--
+--0nzJYn4VFgU25jBs4nJsFRwZfjURTbE5t1xI1xyN--
+
+.
