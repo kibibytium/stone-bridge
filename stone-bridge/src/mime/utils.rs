@@ -1,5 +1,7 @@
-use crate::mime::message::ContentType;
+use crate::logger::log;
+use crate::mime::message::{ContentTransferEncoding, ContentType};
 use crate::mime::{Body, COLON_BYTE, CRLF_BYTES, MimeEntity, MimeError};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 
 pub fn split_crlf(input: &[u8]) -> Option<(&[u8], &[u8])> {
     let pos = find(input, CRLF_BYTES)?;
@@ -105,6 +107,122 @@ pub fn make_body(
     }
 }
 
+/// Content-ID headers look like `<abc@host>`; html references `cid:abc@host`.
+pub fn normalize_cid(id: &str) -> &str {
+    id.trim().trim_start_matches('<').trim_end_matches('>')
+}
+
+/// Decodes a leaf body according to its Content-Transfer-Encoding.
+pub fn decode_body(raw: &[u8], encoding: &ContentTransferEncoding) -> Result<String, MimeError> {
+    match encoding {
+        ContentTransferEncoding::SevenBit | ContentTransferEncoding::EightBit => {
+            Ok(String::from_utf8_lossy(raw).to_string())
+        }
+        ContentTransferEncoding::QuotedPrintable => {
+            let decoded = decode_quoted_printable(raw)?;
+            Ok(decoded)
+        }
+        ContentTransferEncoding::Base64 => Ok(String::from_utf8_lossy(raw).to_string()),
+    }
+}
+
+/// Decodes base64, ignoring the whitespace / line breaks used to wrap it.
+pub fn decode_base64(input: &[u8]) -> Result<Vec<u8>, MimeError> {
+    let compact: Vec<u8> = input
+        .iter()
+        .copied()
+        .filter(|c| !c.is_ascii_whitespace())
+        .collect();
+    STANDARD.decode(compact).map_err(MimeError::Base64Error)
+}
+
+// FIXME does not handle soft breaks
+pub fn decode_quoted_printable(input: &[u8]) -> Result<String, MimeError> {
+    let mut bytes = Vec::with_capacity(input.len());
+    let mut i = 0;
+
+    while i < input.len() {
+        if input[i] == b'=' {
+            // 1. Check for soft line breaks (=\r\n or =\n or trailing =)
+            if i + 1 == input.len() {
+                break; // Trailing '=' at the very end of input
+            }
+            if input[i + 1] == b'\n' {
+                i += 2;
+                continue;
+            }
+            if input[i + 1] == b'\r' {
+                if i + 2 < input.len() && input[i + 2] == b'\n' {
+                    i += 3;
+                } else {
+                    i += 2;
+                }
+                continue;
+            }
+
+            // 2. Decode hex pair without heap allocations
+            if i + 2 < input.len() {
+                let hi = (input[i + 1] as char).to_digit(16);
+                let lo = (input[i + 2] as char).to_digit(16);
+
+                if let (Some(h), Some(l)) = (hi, lo) {
+                    bytes.push(((h << 4) | l) as u8);
+                    i += 3;
+                    continue;
+                }
+            }
+
+            // 3. Fallback per RFC 2045: if invalid hex, push the '=' literally
+            bytes.push(b'=');
+            i += 1;
+        } else {
+            bytes.push(input[i]);
+            i += 1;
+        }
+    }
+
+    String::from_utf8(bytes).map_err(|e| {
+        log::error!("{}", e);
+        MimeError::QuotedPrintableError
+    })
+}
+fn trim_trailing_whitespace(line: &[u8]) -> &[u8] {
+    let end = line
+        .iter()
+        .rposition(|&c| c != b' ' && c != b'\t')
+        .map_or(0, |i| i + 1);
+    &line[..end]
+}
+
+/// Decodes a single quoted-printable line that contains no line breaks.
+fn decode_qp_line(line: &[u8], out: &mut Vec<u8>) -> Result<(), MimeError> {
+    let mut i = 0;
+    while i < line.len() {
+        if line[i] == b'=' {
+            let hi = line.get(i + 1).and_then(|&c| hex_value(c));
+            let lo = line.get(i + 2).and_then(|&c| hex_value(c));
+            match (hi, lo) {
+                (Some(hi), Some(lo)) => out.push((hi << 4) | lo),
+                _ => return Err(MimeError::QuotedPrintableError),
+            }
+            i += 3;
+        } else {
+            out.push(line[i]);
+            i += 1;
+        }
+    }
+    Ok(())
+}
+
+fn hex_value(c: u8) -> Option<u8> {
+    match c {
+        b'0'..=b'9' => Some(c - b'0'),
+        b'A'..=b'F' => Some(c - b'A' + 10),
+        b'a'..=b'f' => Some(c - b'a' + 10),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -121,6 +239,42 @@ mod tests {
     fn split_multipart_delimiter_at_start() {
         let body = b"--b\r\n\r\nonly\r\n--b--";
         assert_eq!(split_multipart(body, b"b"), vec![&b"\r\nonly"[..]]);
+    }
+
+    #[test]
+    fn qp_soft_line_break_is_removed() {
+        assert_eq!(decode_quoted_printable(b"foo=\r\nbar").unwrap(), "foobar");
+        assert_eq!(decode_quoted_printable(b"foo=\nbar").unwrap(), "foobar");
+    }
+
+    #[test]
+    fn qp_hex_escapes_are_decoded() {
+        assert_eq!(
+            decode_quoted_printable(b"src=3D\"cid:x\"").unwrap(),
+            "src=\"cid:x\""
+        );
+        assert_eq!(decode_quoted_printable(b"=c3=a9").unwrap(), "é");
+        assert_eq!(decode_quoted_printable(b"=C3=A9").unwrap(), "é");
+    }
+
+    #[test]
+    fn qp_hard_line_breaks_are_preserved() {
+        assert_eq!(
+            decode_quoted_printable(b"a\r\nb\r\n").unwrap(),
+            "a\r\nb\r\n"
+        );
+    }
+
+    #[test]
+    fn base64_ignores_line_wrapping() {
+        assert_eq!(
+            decode_base64(b"aGVs\r\nbG8g\r\nd29y\r\nbGQ=\r\n").unwrap(),
+            b"hello world"
+        );
+        assert!(matches!(
+            decode_base64(b"!!!!"),
+            Err(MimeError::Base64Error(_))
+        ));
     }
 
     #[test]

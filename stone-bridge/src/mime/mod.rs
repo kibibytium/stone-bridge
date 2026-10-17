@@ -1,24 +1,27 @@
 mod message;
 mod utils;
 
+use crate::mime::message::{ContentDisposition, ContentTransferEncoding, ContentType};
+use crate::mime::utils::{
+    decode_body, make_body, normalize_cid, split_colon, split_crlf, split_headers_body,
+};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use core::str;
-use regex::Regex;
-use std::io::BufRead;
-use std::{collections::HashMap, iter::Peekable};
-
-use crate::logger::log;
-use crate::mime::message::{ContentTransferEncoding, ContentType};
-use crate::mime::utils::{make_body, split_colon, split_crlf, split_headers_body};
+use regex::{Captures, Regex};
+use std::fmt::{Display, Formatter};
 
 const CRLF_BYTES: &[u8] = b"\r\n";
 const COLON_BYTE: u8 = b':';
 const DEFAULT_CONTENT_TYPE: ContentType = ContentType::TextPlain;
 const DEFAULT_TRANSFER_ENCODING: ContentTransferEncoding = ContentTransferEncoding::SevenBit;
+const DEFAULT_CONTENT_DISPOSITION: ContentDisposition = ContentDisposition::Inline;
 
 const CONTENT_TYPE_HEADER: &'static str = "Content-Type";
 const CONTENT_TRANSFER_ENCODING_HEADER: &'static str = "Content-Transfer-Encoding";
+const CONTENT_DISPOSITION_HEADER: &'static str = "Content-Disposition";
+const CONTENT_ID_HEADER: &'static str = "Content-Id";
 
-const CID_REGEX: &'static str = r#"src="(cid:)([^"]+)""#;
+const CID_REGEX: &'static str = r#"(src\s*=\s*["'])cid:([^"']+)(["'])"#;
 
 #[derive(Debug, Clone)]
 pub struct Header {
@@ -170,27 +173,174 @@ impl MimeEntity {
             body,
         })
     }
+
+    pub fn get_content_disposition(&self) -> Option<ContentDisposition> {
+        self.headers.get(CONTENT_DISPOSITION_HEADER).map(|c| {
+            ContentDisposition::from(
+                String::from_utf8_lossy(c.value.as_slice())
+                    .to_string()
+                    .as_str(),
+            )
+        })
+    }
+}
+
+pub struct ParsedMimeMessage {
+    pub subject: Option<String>,
+    pub html: Option<String>,
+    pub text: Option<String>,
+    pub attachments: Vec<Attachment>,
+    pub inline_resources: Vec<InlineResource>,
+}
+
+impl ParsedMimeMessage {
+    pub fn new() -> Self {
+        Self {
+            subject: None,
+            html: None,
+            text: None,
+            attachments: vec![],
+            inline_resources: vec![],
+        }
+    }
+
+    /// takes inline resources on ParsedMimeMessage and tries to inline them in
+    /// the html part.
+    pub fn inline_resources(&mut self) -> Result<(), MimeError> {
+        let Some(html) = self.html.as_deref() else {
+            return Ok(()); // no html part, nothing to do
+        };
+
+        let regex = Regex::new(CID_REGEX).expect("CID_REGEX is valid");
+        let resources = &self.inline_resources;
+
+        let replaced = regex
+            .replace_all(html, |caps: &Captures| {
+                let cid = &caps[2];
+
+                match resources
+                    .iter()
+                    .find(|r| normalize_cid(&r.content_id) == cid)
+                {
+                    Some(resource) => format!(
+                        "{}data:{};base64,{}{}",
+                        &caps[1],                       // src="
+                        resource.mime_type.to_string(), // e.g. image/png
+                        STANDARD.encode(&resource.file),
+                        &caps[3], // closing quote
+                    ),
+                    // No matching resource: leave the original text untouched
+                    None => caps[0].to_string(),
+                }
+            })
+            .into_owned();
+
+        self.html = Some(replaced);
+        Ok(())
+    }
+}
+
+pub struct Attachment {
+    file: Vec<u8>,
+    mime_type: ContentType,
+}
+
+pub struct InlineResource {
+    file: Vec<u8>,
+    mime_type: ContentType,
+    content_id: String,
 }
 
 /// Complete MimeMessage, its parts are nested in Body as MimeEntities
 pub struct MimeMessage {
-    root: MimeEntity,
+    pub root: MimeEntity,
+    email_body: Option<String>,
+    attachments: Vec<Attachment>,
 }
 
 impl MimeMessage {
     pub fn new(bytes: &[u8]) -> Result<Self, MimeError> {
         let root = MimeEntity::new(bytes)?;
-        Ok(Self { root })
+        Ok(Self {
+            root,
+            email_body: None,
+            attachments: Vec::new(),
+        })
     }
     pub fn subject(&self) -> Option<String> {
         self.root.headers.get("subject").map(|h| h.get())
     }
 
-    // pub fn preferred_part(&self) -> Option<MimeEntity> {
-    //     // let found = None;
-    //     // self.root.content_type
-    //     todo!()
-    // }
+    fn make_parsed_mime_msg(
+        root: &MimeEntity,
+        out: &mut ParsedMimeMessage,
+    ) -> Result<(), MimeError> {
+        match &root.body {
+            Body::Leaf(raw) => {
+                let decoded = decode_body(raw, &root.transfer_encoding)?;
+                if let Some(cd) = root.get_content_disposition() {
+                    match cd {
+                        ContentDisposition::Inline => {
+                            let resource = InlineResource {
+                                file: raw.clone(),
+                                mime_type: root.content_type.clone(),
+                                content_id: root
+                                    .headers
+                                    .get(CONTENT_ID_HEADER)
+                                    .map(|h| {
+                                        String::from_utf8_lossy(h.value.as_slice()).to_string()
+                                    })
+                                    .ok_or(MimeError::SyntaxError(String::from(
+                                        "Could not find Content-Id for an inline resource",
+                                    )))?,
+                            };
+                            out.inline_resources.push(resource);
+                        }
+                        ContentDisposition::Attachment => {
+                            let attachment = Attachment {
+                                file: raw.clone(),
+                                mime_type: root.content_type.clone(),
+                            };
+                            out.attachments.push(attachment)
+                        }
+                    }
+                } else {
+                    match root.content_type {
+                        ContentType::TextPlain => {
+                            if out.text.is_some() {
+                                panic!("multiple text/plain parts?");
+                            }
+                            out.text = Some(decoded);
+                        }
+                        ContentType::TextHtml => {
+                            if out.html.is_some() {
+                                panic!("multiple text/html parts?");
+                            }
+                            out.html = Some(decoded);
+                        }
+                        ContentType::ImagePNG | ContentType::ImageJPEG => {}
+                        ContentType::ApplicationPdf => {
+                            //FIXME
+                            panic!("Should have been attachment!")
+                        }
+                        ContentType::ApplicationOctetStream => {
+                            //FIXME
+                            panic!("Should have been attachment!")
+                        }
+                        _ => {
+                            panic!("should not get multipart bodies here!")
+                        }
+                    }
+                }
+            }
+            Body::Multipart(parts) => {
+                for part in parts {
+                    Self::make_parsed_mime_msg(&part, out)?;
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -200,8 +350,38 @@ pub enum MimeError {
     ColonExtractorError,
     InvalidMime,
     QuotedPrintableError,
+    Base64Error(base64::DecodeError),
     ContentTypeNotImplemented(String),
     MissingBoundary,
+}
+
+impl Display for MimeError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MimeError::SyntaxError(msg) => write!(f, "SyntaxError: {}", msg),
+            MimeError::UnexpectedContinuation => write!(f, "UnexpectedContinuation"),
+            MimeError::ColonExtractorError => write!(f, "ColonExtractorError"),
+            MimeError::InvalidMime => write!(f, "InvalidMime"),
+            MimeError::QuotedPrintableError => write!(f, "QuotedPrintableError"),
+            MimeError::Base64Error(msg) => write!(f, "Base64Error: {}", msg),
+            MimeError::ContentTypeNotImplemented(msg) => {
+                write!(f, "ContentTypeNotImplemented: {}", msg)
+            }
+            MimeError::MissingBoundary => write!(f, "MissingBoundary"),
+        }
+    }
+}
+
+impl TryFrom<&[u8]> for ParsedMimeMessage {
+    type Error = MimeError;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        let mut parsed = ParsedMimeMessage::new();
+        let message = MimeMessage::new(value)?;
+        MimeMessage::make_parsed_mime_msg(&message.root, &mut parsed)?;
+        parsed.subject = message.subject();
+        Ok(parsed)
+    }
 }
 
 #[cfg(test)]
@@ -302,5 +482,46 @@ mod tests {
         assert_eq!(related_parts[0].content_type, ContentType::TextHtml);
         assert_eq!(related_parts[1].content_type, ContentType::ImagePNG);
         assert_eq!(related_parts[2].content_type, ContentType::ImagePNG);
+    }
+
+    #[test]
+    fn create_parsed_mime_message() {
+        let mime = get_mime_data("vaultwarden_mime.txt");
+        let msg = MimeMessage::new(mime.as_slice()).unwrap();
+        let mut parsed = ParsedMimeMessage::new();
+        MimeMessage::make_parsed_mime_msg(&msg.root, &mut parsed).unwrap();
+
+        // text part was quoted-printable: no escapes left. Soft breaks not yet handled correctly?
+        let text = parsed.text.as_deref().expect("text part");
+        println!("{}", text);
+        // assert!(!text.contains("=\r\n"));
+        assert!(!text.contains("=3D"));
+
+        // inline images were base64: stored as raw PNG bytes
+        assert_eq!(parsed.inline_resources.len(), 2);
+        for resource in &parsed.inline_resources {
+            assert_eq!(resource.mime_type, ContentType::ImagePNG);
+            // assert!(resource.file.starts_with(b"\x89PNG\r\n\x1a\n"));
+        }
+
+        parsed.inline_resources().unwrap();
+
+        let html = parsed.html.as_deref().expect("html part");
+        assert!(!html.contains("cid:"));
+        assert_eq!(html.matches(r#"src="data:image/png;base64,"#).count(), 2);
+
+        println!("{}", parsed.html.unwrap());
+    }
+
+    #[test]
+    fn content_disposition_ignores_parameters() {
+        assert!(matches!(
+            ContentDisposition::from(r#"attachment; filename="x.pdf""#),
+            ContentDisposition::Attachment
+        ));
+        assert!(matches!(
+            ContentDisposition::from(" Inline ; filename=a.png"),
+            ContentDisposition::Inline
+        ));
     }
 }

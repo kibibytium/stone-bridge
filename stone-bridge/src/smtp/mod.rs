@@ -1,6 +1,8 @@
 use crate::logger::log;
 use crate::mail_dispatcher::Mailer;
+use crate::mime::{Attachment, MimeError, MimeMessage, ParsedMimeMessage};
 use crate::smtp::session::{Action, MessageOutcome, Reply, Session};
+use chrono::format::parse;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
@@ -23,6 +25,7 @@ struct PendingMail {
     recipients: Vec<String>,
     subject: String,
     body: String,
+    attachments: Vec<Attachment>,
 }
 pub struct TutaMailTransferAgent<M: Mailer> {
     mailer: Arc<M>,
@@ -100,7 +103,7 @@ impl<M: Mailer> TutaMailTransferAgent<M> {
                             pending.push(mail);
                             MessageOutcome::Accepted
                         }
-                        Err(reason) => MessageOutcome::PermanentFailure(reason),
+                        Err(reason) => MessageOutcome::PermanentFailure(reason.to_string()),
                     };
                     session.finish_message(outcome)
                 }
@@ -137,12 +140,29 @@ fn send(writer: &mut TcpStream, reply: &Reply) -> std::io::Result<()> {
 }
 
 /// Dumps the message to `mime.txt` and extracts subject and body.
-fn prepare_mail(envelope: Envelope) -> Result<PendingMail, String> {
+fn prepare_mail(envelope: Envelope) -> Result<PendingMail, MimeError> {
     //FIXME test if this writes utf8
     match File::create("mime.txt").and_then(|mut f| f.write_all(&envelope.lines)) {
         Ok(()) => log::debug!("Done reading DATA and wrote data to file."),
         Err(e) => log::warning!("Could not write mime.txt: {}", e),
     }
+    match ParsedMimeMessage::try_from(envelope.lines.as_slice()) {
+        Ok(parsed) => {
+            let body = match parsed.html {
+                Some(html) => html,
+                None => parsed.text.unwrap_or_else(|| "".to_string()),
+            };
 
-    todo!("Refactoring Mime Parser")
+            log::info!("parsing done, preparing mail");
+            Ok(PendingMail {
+                recipients: envelope.recipients,
+                subject: parsed.subject.unwrap_or("".to_string()),
+                body,
+                attachments: parsed.attachments,
+            })
+        }
+        Err(err) => {
+            return Err(err);
+        }
+    }
 }
