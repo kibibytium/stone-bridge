@@ -1,6 +1,6 @@
 use crate::logger::log;
-use crate::smtp::command::Command;
 use crate::smtp::Envelope;
+use crate::smtp::command::Command;
 use crate::smtp::error::SmtpError;
 
 #[derive(Debug, PartialEq)]
@@ -10,9 +10,12 @@ enum State {
     /// HELO/EHLO received; no mail transaction in progress.
     Greeted,
     /// MAIL accepted; waiting for the first RCPT.
-    Mail { from: String },
+    Mail {
+        from: String,
+    },
     /// RCPT
     Recipients {
+        /// from is needed because State::Data write Envelope and needs from.
         from: String,
         recipients: Vec<String>,
     },
@@ -46,10 +49,7 @@ impl Session {
 
     /// True when the next line is an SMTP command, false while inside DATA
     pub fn expects_command(&self) -> bool {
-        !matches!(
-            self.state,
-            State::Data {..}
-        )
+        !matches!(self.state, State::Data { .. })
     }
 
     pub fn handle_line(&mut self, line: &[u8]) -> Action {
@@ -60,10 +60,9 @@ impl Session {
                     451,
                     "4.3.0 Previous message still being processed",
                 ))
-            },
+            }
 
             State::Data(mut envelope) => {
-
                 if line == b".\r\n" {
                     return Action::Message(envelope);
                 }
@@ -76,13 +75,11 @@ impl Session {
             state => {
                 // reset the state to what it was
                 self.state = state;
-                let command_result: Result<Command, SmtpError> =line.try_into();
+                let command_result: Result<Command, SmtpError> = line.try_into();
                 match command_result {
-                    Ok(command) => {
-                        self.handle_command(command)
-                    }
+                    Ok(command) => self.handle_command(command),
                     Err(e) => {
-                        Action::Reply(Reply::new(501,format!("5.4.4 Syntax error: {:?}", e)))
+                        Action::Reply(Reply::new(501, format!("5.4.4 Syntax error: {:?}", e)))
                     }
                 }
             }
@@ -90,29 +87,24 @@ impl Session {
     }
 
     pub fn handle_command(&mut self, command: Command) -> Action {
-
         let reply: Reply = match command {
             Command::Helo(_) => {
                 self.state = State::Greeted;
                 Reply::new(250, self.hostname.clone())
-            },
+            }
             Command::Ehlo(host) => {
                 self.state = State::Greeted;
                 self.ehlo_reply(&host)
-            },
-            Command::Mail { from } => {
-                match self.state {
-                    State::Greeted => {
-                        self.state = State::Mail { from };
-                        ok()
-                    },
-                    State::Connected => {
-                        bad_sequence("Expected RCPT before MAIL")
-
-                    }
-                    _ => bad_sequence("Bad Sequence of Commands")
-                }
             }
+            Command::Mail { from: mail_from } => match &mut self.state {
+                State::Connected => bad_sequence("MAIL command is too early"),
+                State::Greeted => {
+                    self.state = State::Mail { from: mail_from };
+                    ok()
+                }
+                State::Recipients { from, recipients } => bad_sequence("MAIL comes before RCPT"),
+                _ => bad_sequence("Bad Sequence of Commands"),
+            },
             Command::Quit => {
                 return Action::Close(Reply::new(
                     221,
@@ -124,7 +116,11 @@ impl Session {
             }
             Command::Data => match std::mem::replace(&mut self.state, State::Greeted) {
                 State::Recipients { from, recipients } => {
-                    self.state = State::Data(Envelope {from, recipients, lines:Vec::new()});
+                    self.state = State::Data(Envelope {
+                        from,
+                        recipients,
+                        lines: Vec::new(),
+                    });
 
                     Reply::new(354, "Start mail input; end with <CRLF>.<CRLF>")
                 }
@@ -135,23 +131,21 @@ impl Session {
                 }
             },
 
-            Command::Rcpt { to } => {
-                match &mut self.state {
-                    State::Mail { from } => {
-                        let from = from.clone();
-                        self.state = State::Recipients { from, recipients: vec![to]};
-                        ok()
-                    }
-                    State::Recipients { from, recipients } => {
-                        recipients.push(to.clone());
-                        ok()
-                    }
-                    _ => {
-                        bad_sequence("Need Mail before RCPT")
-                    }
+            Command::Rcpt { to } => match &mut self.state {
+                State::Greeted => bad_sequence("Expected MAIL before RCPT"),
+                State::Mail { from } => {
+                    self.state = State::Recipients {
+                        from: "".to_string(),
+                        recipients: vec![to],
+                    };
+                    ok()
                 }
-
-            }
+                State::Recipients { from, recipients } => {
+                    recipients.push(to.clone());
+                    ok()
+                }
+                _ => bad_sequence("RCPT too early"),
+            },
             Command::Unknown(verb) => {
                 Reply::new(502, format!("5.5.2 Command not implemented: {}", verb))
             }
@@ -185,7 +179,6 @@ impl Session {
             }
         }
     }
-
 }
 
 fn ok() -> Reply {
@@ -195,8 +188,6 @@ fn ok() -> Reply {
 fn bad_sequence(text: &str) -> Reply {
     Reply::new(503, format!("5.5.1 {}", text))
 }
-
-
 
 /// SMTP Reply
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -230,7 +221,6 @@ impl Reply {
     }
 }
 
-
 #[derive(Debug, PartialEq, Eq)]
 pub enum Action {
     /// Write the reply and keep reading.
@@ -253,9 +243,8 @@ pub enum MessageOutcome {
     PermanentFailure(String),
 }
 
-
 #[cfg(test)]
-mod tests{
+mod tests {
     use crate::smtp::session::{Action, Reply, Session};
 
     #[test]
@@ -270,10 +259,7 @@ mod tests{
     #[test]
     fn greeting_and_ehlo_use_hostname() {
         let mut s = Session::new("mx.example".to_string());
-        assert_eq!(
-            s.greeting().to_bytes(),
-            b"220 mx.example ESMTP\r\n"
-        );
+        assert_eq!(s.greeting().to_bytes(), b"220 mx.example ESMTP\r\n");
         match s.handle_line(b"EHLO c\r\n") {
             Action::Reply(r) => {
                 assert_eq!(r.code, 250);
@@ -283,7 +269,24 @@ mod tests{
             other => {
                 eprint!("{:?}", other);
                 panic!("{:?}", other)
-            },
+            }
+        }
+    }
+
+    #[test]
+    fn simple_smtp_commands() {
+        let mut s = Session::new("mx.example".to_string());
+        let commands: Vec<&[u8]> = vec![
+            b"EHLO test",
+            b"MAIL FROM: test@localhost",
+            b"RCPT TO: test@localhost",
+        ];
+        for cmd in commands {
+            match s.handle_line(cmd) {
+                any => {
+                    println!("{:?}", any);
+                }
+            }
         }
     }
 }
