@@ -166,3 +166,35 @@ fn prepare_mail(envelope: Envelope) -> Result<PendingMail, MimeError> {
         }
     }
 }
+
+pub fn parse_cmd_address(line: String) -> String {
+    let trimmed = line.trim();
+    let upper = trimmed.to_uppercase();
+
+    let rest = ["TO:", "FROM:"]
+        .iter()
+        .find(|p| upper.starts_with(*p))
+        .map(|p| &trimmed[p.len()..])
+        .unwrap_or(line.as_str());
+
+    let addr = rest
+        .trim()
+        .trim_start_matches('<')
+        .trim_end_matches('>')
+        .trim();
+
+    addr.to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::smtp::parse_cmd_address;
+
+    #[test]
+    fn can_parse_address_from_smtp_cmd() {
+        let line = String::from("FROM: <test@localhost>");
+        let parsed = parse_cmd_address(line.clone());
+
+        assert_eq!(parsed, "test@localhost");
+    }
+}

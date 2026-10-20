@@ -1,7 +1,7 @@
 use crate::logger::log;
-use crate::smtp::Envelope;
 use crate::smtp::command::Command;
 use crate::smtp::error::SmtpError;
+use crate::smtp::{Envelope, parse_cmd_address};
 
 #[derive(Debug, PartialEq)]
 enum State {
@@ -10,9 +10,7 @@ enum State {
     /// HELO/EHLO received; no mail transaction in progress.
     Greeted,
     /// MAIL accepted; waiting for the first RCPT.
-    Mail {
-        from: String,
-    },
+    Mail { from: String },
     /// RCPT
     Recipients {
         /// from is needed because State::Data write Envelope and needs from.
@@ -22,7 +20,6 @@ enum State {
     /// Inside DATA, collecting lines until `.`.
     Data(Envelope),
     /// The message was handed to the MIME parser
-    MimeParsing,
     Awaiting,
 }
 
@@ -43,7 +40,6 @@ impl Session {
 
     /// The 220 greeting sent when the connection opens.
     pub fn greeting(&self) -> Reply {
-        //TODO Greeting configurable
         Reply::new(220, format!("{} ESMTP", self.hostname))
     }
 
@@ -64,6 +60,7 @@ impl Session {
 
             State::Data(mut envelope) => {
                 if line == b".\r\n" {
+                    self.state = State::Greeted;
                     return Action::Message(envelope);
                 }
 
@@ -88,7 +85,8 @@ impl Session {
 
     pub fn handle_command(&mut self, command: Command) -> Action {
         let reply: Reply = match command {
-            Command::Helo(_) => {
+            Command::Helo(client_msg) => {
+                log::info!("HELO: {:?}", client_msg);
                 self.state = State::Greeted;
                 Reply::new(250, self.hostname.clone())
             }
@@ -99,7 +97,9 @@ impl Session {
             Command::Mail { from: mail_from } => match &mut self.state {
                 State::Connected => bad_sequence("MAIL command is too early"),
                 State::Greeted => {
-                    self.state = State::Mail { from: mail_from };
+                    self.state = State::Mail {
+                        from: parse_cmd_address(mail_from),
+                    };
                     ok()
                 }
                 State::Recipients { from, recipients } => bad_sequence("MAIL comes before RCPT"),
@@ -135,8 +135,8 @@ impl Session {
                 State::Greeted => bad_sequence("Expected MAIL before RCPT"),
                 State::Mail { from } => {
                     self.state = State::Recipients {
-                        from: "".to_string(),
-                        recipients: vec![to],
+                        from: from.to_string(),
+                        recipients: vec![parse_cmd_address(to)],
                     };
                     ok()
                 }
@@ -245,7 +245,7 @@ pub enum MessageOutcome {
 
 #[cfg(test)]
 mod tests {
-    use crate::smtp::session::{Action, Reply, Session};
+    use crate::smtp::session::{Action, Reply, Session, State};
 
     #[test]
     fn reply_wire_format() {
@@ -274,18 +274,82 @@ mod tests {
     }
 
     #[test]
-    fn simple_smtp_commands() {
+    fn simple_happy_path() {
         let mut s = Session::new("mx.example".to_string());
+
+        let mime_and_quit: Vec<&[u8]> = vec![
+            b"Message-ID: <123456789@server_name.net>\r\n",
+            b"To: some_address@server_name.net\r\n",
+            b"From: Vaultwarden <vaultwarden@server_name.net>\r\n",
+            b"Subject: Vaultwarden SMTP Test\r\n",
+            b"MIME-Version: 1.0\r\n",
+            b"Date: Sun, 21 Sep 2025 11:07:22 +0000\r\n",
+            b"Content-Type: text/html; charset=utf-8\r\n",
+            b" boundary=\"0nzJYn4VFgU25jBs4nJsFRwZfjURTbE5t1xI1xyN\"\r\n",
+            b"Content-Transfer-Encoding: 8bit\r\n",
+            b"\r\n",
+            b"This is a test\r\n",
+            b".\r\n",
+            b"QUIT",
+        ];
+
         let commands: Vec<&[u8]> = vec![
             b"EHLO test",
-            b"MAIL FROM: test@localhost",
-            b"RCPT TO: test@localhost",
+            b"MAIL FROM: sender@localhost",
+            b"RCPT TO: recipient@localhost",
+            b"DATA",
         ];
         for cmd in commands {
             match s.handle_line(cmd) {
-                any => {
-                    println!("{:?}", any);
+                Action::Reply(a) => match cmd {
+                    b"EHLO test" => {
+                        assert_eq!(a.code, 250);
+                    }
+                    b"MAIL FROM: sender@localhost" => {
+                        assert_eq!(a.code, 250);
+                        assert_eq!(
+                            s.state,
+                            State::Mail {
+                                from: "sender@localhost".to_string()
+                            }
+                        );
+                    }
+                    b"RCPT TO: recipient@localhost" => {
+                        assert_eq!(a.code, 250);
+                        assert_eq!(
+                            s.state,
+                            State::Recipients {
+                                from: "sender@localhost".to_string(),
+                                recipients: vec!["recipient@localhost".to_string()]
+                            }
+                        );
+                    }
+                    b"DATA" => {
+                        assert_eq!(a.lines[0], "Start mail input; end with <CRLF>.<CRLF>");
+                    }
+                    any => {
+                        panic!("No other commands are expected")
+                    }
+                },
+                Action::Close(_) => {
+                    panic!("Connection has not been closed yet")
                 }
+                Action::Message(_) => {
+                    panic!("Should not get message yet");
+                }
+                Action::Continue => {}
+            }
+        }
+
+        for line in mime_and_quit.iter() {
+            match s.handle_line(line) {
+                Action::Reply(_) => {}
+                Action::Close(_) => {}
+                Action::Message(msg) => {
+                    assert_eq!(msg.recipients.len(), 1);
+                    assert_eq!(msg.recipients[0], "recipient@localhost");
+                }
+                Action::Continue => {}
             }
         }
     }

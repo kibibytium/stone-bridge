@@ -186,42 +186,6 @@ pub fn decode_quoted_printable(input: &[u8]) -> Result<String, MimeError> {
         MimeError::QuotedPrintableError
     })
 }
-fn trim_trailing_whitespace(line: &[u8]) -> &[u8] {
-    let end = line
-        .iter()
-        .rposition(|&c| c != b' ' && c != b'\t')
-        .map_or(0, |i| i + 1);
-    &line[..end]
-}
-
-/// Decodes a single quoted-printable line that contains no line breaks.
-fn decode_qp_line(line: &[u8], out: &mut Vec<u8>) -> Result<(), MimeError> {
-    let mut i = 0;
-    while i < line.len() {
-        if line[i] == b'=' {
-            let hi = line.get(i + 1).and_then(|&c| hex_value(c));
-            let lo = line.get(i + 2).and_then(|&c| hex_value(c));
-            match (hi, lo) {
-                (Some(hi), Some(lo)) => out.push((hi << 4) | lo),
-                _ => return Err(MimeError::QuotedPrintableError),
-            }
-            i += 3;
-        } else {
-            out.push(line[i]);
-            i += 1;
-        }
-    }
-    Ok(())
-}
-
-fn hex_value(c: u8) -> Option<u8> {
-    match c {
-        b'0'..=b'9' => Some(c - b'0'),
-        b'A'..=b'F' => Some(c - b'A' + 10),
-        b'a'..=b'f' => Some(c - b'a' + 10),
-        _ => None,
-    }
-}
 
 #[cfg(test)]
 mod tests {

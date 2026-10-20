@@ -1,18 +1,19 @@
-use std::sync::Arc;
 use crate::config::Config;
-use crate::logger::{log, ConsoleAndFileLogger, LogLevel};
+use crate::logger::{ConsoleAndFileLogger, LogLevel, log};
 use crate::mail_dispatcher::{Mailer, SocketMailer};
 use crate::smtp::TutaMailTransferAgent;
+use std::sync::Arc;
 
-mod logger;
 mod config;
-mod mail_dispatcher;
 mod error;
-mod smtp;
+mod logger;
+mod mail_dispatcher;
 mod mime;
+mod smtp;
+#[cfg(test)]
+mod test_utils;
 
 pub const DEFAULT_SOCKET_PATH: &str = "/tmp/stone-bridge.sock";
-
 
 #[tokio::main]
 async fn main() {

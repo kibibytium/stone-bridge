@@ -387,11 +387,9 @@ impl TryFrom<&[u8]> for ParsedMimeMessage {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::get_mime_data;
     use std::fs;
 
-    fn get_mime_data(file_name: &str) -> Vec<u8> {
-        fs::read(format!("test/fixtures/{}", file_name)).unwrap()
-    }
     #[test]
     fn parse_simple_headers() {
         let mime = get_mime_data("simple-email.txt");
