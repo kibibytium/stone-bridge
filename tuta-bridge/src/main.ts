@@ -36,7 +36,7 @@ import { ExportFacade, NativeCryptoFacade } from "../tutanota/src/native-bridge/
 import { EntityClient } from "../tutanota/src/platform-kit/network/EntityClient"
 import { initClientModels } from "../tutanota/src/applications/common/api/common/ClientModelInfoInitializer"
 import { ConversationType, MailMethod, PartialRecipient, Recipient, RecipientType } from "../tutanota/src/entities/tutanota/Utils"
-import { NotFoundError } from "@tutao/rest-client/error"
+import {BadRequestError, NotFoundError} from "@tutao/rest-client/error"
 import xhr2 from "xhr2"
 import http from "node:http"
 import fs from "node:fs"
@@ -316,9 +316,15 @@ async function getRecipientType(baseLocator: BaseLocator, recipientAddress: stri
 		await baseLocator.serviceExecutor.execute(PublicKeyService_GET, requestData, null)
 	} catch (e) {
 		if (e instanceof NotFoundError) {
+			console.info("Recipient is external")
 			return RecipientType.EXTERNAL
+		} else if (e instanceof BadRequestError) {
+			console.error(e)
+			throw e
 		} else {
-			console.log("Not Not Found?????")
+			console.error("Request to PublicKeyService was not Ok")
+			console.error(e)
+			throw e
 		}
 	}
 
