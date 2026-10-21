@@ -2,7 +2,7 @@ use crate::logger::log;
 use crate::mail_dispatcher::Mailer;
 use crate::mime::{Attachment, MimeError, MimeMessage, ParsedMimeMessage};
 use crate::smtp::session::{Action, MessageOutcome, Reply, Session};
-use chrono::format::parse;
+use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
@@ -21,10 +21,19 @@ pub struct Envelope {
     pub lines: Vec<u8>,
 }
 
-struct PendingMail {
-    recipients: Vec<String>,
+#[derive(Serialize, Deserialize)]
+pub struct MailAddress {
+    address: String,
+    name: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub(crate) struct PendingMail {
+    sender: MailAddress,
+    recipients: Vec<MailAddress>,
     subject: String,
     body: String,
+    #[serde(skip)] // TODO support Attachments in Tuta
     attachments: Vec<Attachment>,
 }
 pub struct TutaMailTransferAgent<M: Mailer> {
@@ -117,13 +126,9 @@ impl<M: Mailer> TutaMailTransferAgent<M> {
 
     async fn deliver(&self, mail: PendingMail) {
         for recipient in &mail.recipients {
-            log::debug!("Sending mail to {}", recipient);
-            if let Err(e) = self
-                .mailer
-                .send_mail(recipient, &mail.subject, &mail.body)
-                .await
-            {
-                log::error!("Could not send mail to {}: {:?}", recipient, e);
+            log::debug!("Sending mail to {}", recipient.address);
+            if let Err(e) = self.mailer.send_mail(&mail).await {
+                log::error!("Could not send mail to {}: {:?}", recipient.address, e);
             }
         }
     }
@@ -155,7 +160,18 @@ fn prepare_mail(envelope: Envelope) -> Result<PendingMail, MimeError> {
 
             log::info!("parsing done, preparing mail");
             Ok(PendingMail {
-                recipients: envelope.recipients,
+                sender: MailAddress {
+                    address: envelope.from,
+                    name: parsed.sender_name.clone(),
+                },
+                recipients: envelope
+                    .recipients
+                    .iter()
+                    .map(|r| MailAddress {
+                        address: r.to_string(),
+                        name: parsed.recipient_name.clone(),
+                    })
+                    .collect(),
                 subject: parsed.subject.unwrap_or("".to_string()),
                 body,
                 attachments: parsed.attachments,
@@ -186,15 +202,50 @@ pub fn parse_cmd_address(line: String) -> String {
     addr.to_string()
 }
 
+pub fn parse_address_name(line: String) -> String {
+    let trimmed = line.trim();
+    let upper = trimmed.to_uppercase();
+
+    let rest = ["TO:", "FROM:"]
+        .iter()
+        .find(|p| upper.starts_with(*p))
+        .map(|p| &trimmed[p.len()..])
+        .unwrap_or(line.as_str());
+
+    let name_end_idx = rest.find(|c| c == '<');
+    match name_end_idx {
+        Some(idx) => rest[..idx].trim_matches('"').to_string().trim().to_string(),
+        None => "".to_string(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::smtp::parse_cmd_address;
+    use crate::smtp::{parse_address_name, parse_cmd_address};
 
     #[test]
     fn can_parse_address_from_smtp_cmd() {
         let line = String::from("FROM: <test@localhost>");
-        let parsed = parse_cmd_address(line.clone());
+        let no_angle_brackets = String::from("To: some_address@server_name.net");
+        let parsed_address = parse_cmd_address(line.clone());
+        let parsed_no_angle_brackets = parse_cmd_address(no_angle_brackets);
 
-        assert_eq!(parsed, "test@localhost");
+        assert_eq!(parsed_address, "test@localhost");
+        assert_eq!(parsed_no_angle_brackets, "some_address@server_name.net");
+    }
+
+    #[test]
+    fn can_parse_name_from_address_line() {
+        let line_with_name = String::from("FROM: \"Sender Name\" <test@localhost>");
+        let line_without_name = String::from("TO: <test@localhost>");
+        let line_without_brackets = String::from("TO: test@localhost");
+
+        let parsed_name = parse_address_name(line_with_name.clone());
+        let parsed_empty = parse_address_name(line_without_name.clone());
+        let parsed_no_brackets = parse_address_name(line_without_brackets.clone());
+
+        assert_eq!(parsed_name, "Sender Name");
+        assert_eq!(parsed_empty, "");
+        assert_eq!(parsed_no_brackets, "");
     }
 }

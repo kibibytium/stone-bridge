@@ -91,8 +91,14 @@ const SERVER_URL = `https://${SERVER_HOST}`
 ;(globalThis as any).self = globalThis
 ;(globalThis as any).XMLHttpRequest = xhr2
 
+type MailAddress  = {
+	address: string,
+	name: string | null
+}
+
 type SocketMessage = {
-	recipient: string
+	sender: MailAddress,
+	recipients: MailAddress[],
 	subject: string
 	body: string
 }
@@ -332,18 +338,19 @@ async function getRecipientType(baseLocator: BaseLocator, recipientAddress: stri
 }
 
 async function sendMail(baseLocator: BaseLocator, mailFacade: MailFacade, msg: SocketMessage, config: Record<string, string>): Promise<SendMailReturn> {
-	const recipientType = await getRecipientType(baseLocator, msg.recipient)
+	//TODO handle multiple recipients
+	const recipientType = await getRecipientType(baseLocator, msg.recipients[0].address)
 	console.log("Sending an email to a recipient of type: " + recipientType)
 	const r: PartialRecipient = {
-		address: msg.recipient,
-		name: "Recipient Name",
+		address: msg.recipients[0].address,
+		name: msg.recipients[0].name,
 		type: recipientType,
 	}
 	const d = {
 		subject: msg.subject,
 		bodyText: msg.body,
 		senderMailAddress: config.LOGIN_ADDRESS,
-		senderName: "Sdk Mailer",
+		senderName: msg.sender.name ?? "",
 		toRecipients: [r],
 		ccRecipients: [],
 		bccRecipients: [],

@@ -1,27 +1,17 @@
-use crate::{ logger::log};
+use crate::error::TutaBridgeError;
+use crate::logger::log;
+use crate::smtp::{MailAddress, PendingMail};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::path::Path;
-use crate::error::TutaBridgeError;
 
 /// Default path of the Unix socket the external sender service listens on.
 
 pub trait Mailer {
-    async fn send_mail(
-        &self,
-        recipient: &str,
-        subject: &str,
-        body: &str,
-    ) -> Result<(), TutaBridgeError>;
+    async fn send_mail(&self, mail: &PendingMail) -> Result<(), TutaBridgeError>;
 }
 
-#[derive(Serialize, Deserialize)]
-struct SocketMessage {
-    recipient: String,
-    subject: String,
-    body: String,
-}
 #[derive(Serialize, Deserialize)]
 #[allow(non_snake_case)]
 struct SocketMessageReturn {
@@ -46,30 +36,20 @@ impl SocketMailer {
 }
 
 impl Mailer for SocketMailer {
-    async fn send_mail(
-        &self,
-        recipient: &str,
-        subject: &str,
-        body: &str,
-    ) -> Result<(), TutaBridgeError> {
-        let msg = SocketMessage {
-            recipient: recipient.to_string(),
-            subject: subject.to_string(),
-            body: body.to_string(),
-        };
-
+    async fn send_mail(&self, mail: &PendingMail) -> Result<(), TutaBridgeError> {
         let response = self
             .client
             .post("http://localhost/")
-            .json(&json!(msg))
+            .json(&json!(mail))
             .send()
             .await
-            .map_err(|e| TutaBridgeError::SendMessageError(format!("Failed to send message: {:?}", e)))?;
+            .map_err(|e| {
+                TutaBridgeError::SendMessageError(format!("Failed to send message: {:?}", e))
+            })?;
 
-        let json: SocketMessageReturn = response
-            .json()
-            .await
-            .map_err(|e| TutaBridgeError::ResponseError(format!("Failed to parse response: {:?}", e)))?;
+        let json: SocketMessageReturn = response.json().await.map_err(|e| {
+            TutaBridgeError::ResponseError(format!("Failed to parse response: {:?}", e))
+        })?;
 
         log::info!(
             "Successfully sent mail to {}, with MessageId: {}",

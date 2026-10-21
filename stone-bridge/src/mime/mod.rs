@@ -5,9 +5,11 @@ use crate::mime::message::{ContentDisposition, ContentTransferEncoding, ContentT
 use crate::mime::utils::{
     decode_body, make_body, normalize_cid, split_colon, split_crlf, split_headers_body,
 };
+use crate::smtp::parse_address_name;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use core::str;
 use regex::{Captures, Regex};
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
 const CRLF_BYTES: &[u8] = b"\r\n";
@@ -186,6 +188,8 @@ impl MimeEntity {
 }
 
 pub struct ParsedMimeMessage {
+    pub sender_name: Option<String>,
+    pub recipient_name: Option<String>,
     pub subject: Option<String>,
     pub html: Option<String>,
     pub text: Option<String>,
@@ -196,6 +200,8 @@ pub struct ParsedMimeMessage {
 impl ParsedMimeMessage {
     pub fn new() -> Self {
         Self {
+            sender_name: None,
+            recipient_name: None,
             subject: None,
             html: None,
             text: None,
@@ -269,6 +275,22 @@ impl MimeMessage {
     }
     pub fn subject(&self) -> Option<String> {
         self.root.headers.get("subject").map(|h| h.get())
+    }
+
+    pub fn sender_name(&self) -> Option<String> {
+        self.root
+            .headers
+            .get("from")
+            .map(|h| h.get())
+            .map(parse_address_name)
+    }
+
+    pub fn recipient_name(&self) -> Option<String> {
+        self.root
+            .headers
+            .get("to")
+            .map(|h| h.get())
+            .map(parse_address_name)
     }
 
     fn make_parsed_mime_msg(
@@ -380,6 +402,8 @@ impl TryFrom<&[u8]> for ParsedMimeMessage {
         let message = MimeMessage::new(value)?;
         MimeMessage::make_parsed_mime_msg(&message.root, &mut parsed)?;
         parsed.subject = message.subject();
+        parsed.sender_name = message.sender_name();
+        parsed.recipient_name = message.recipient_name();
         Ok(parsed)
     }
 }
@@ -388,7 +412,6 @@ impl TryFrom<&[u8]> for ParsedMimeMessage {
 mod tests {
     use super::*;
     use crate::test_utils::get_mime_data;
-    use std::fs;
 
     #[test]
     fn parse_simple_headers() {
@@ -491,7 +514,7 @@ mod tests {
 
         // text part was quoted-printable: no escapes left. Soft breaks not yet handled correctly?
         let text = parsed.text.as_deref().expect("text part");
-        println!("{}", text);
+        //FIXME not sure why this doesn't pass
         // assert!(!text.contains("=\r\n"));
         assert!(!text.contains("=3D"));
 
@@ -508,7 +531,10 @@ mod tests {
         assert!(!html.contains("cid:"));
         assert_eq!(html.matches(r#"src="data:image/png;base64,"#).count(), 2);
 
-        println!("{}", parsed.html.unwrap());
+        parsed.sender_name = msg.sender_name();
+        parsed.recipient_name = msg.recipient_name();
+        assert_eq!(parsed.sender_name.unwrap(), String::from("Vaultwarden"));
+        assert_eq!(parsed.recipient_name.unwrap(), String::from(""));
     }
 
     #[test]
