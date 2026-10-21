@@ -3,6 +3,7 @@ use crate::smtp::error::SmtpError;
 pub enum Command {
     Helo(String),
     Ehlo(String),
+    Auth,
     Mail { from: String },
     Rcpt { to: String },
     Data,
@@ -41,6 +42,7 @@ impl TryFrom<&[u8]> for Command {
                 Ok(Command::Data)
             }
             "QUIT" => Ok(Command::Quit),
+            "AUTH" => Ok(Command::Auth),
             other => Ok(Command::Unknown(other.to_string())),
         }
     }

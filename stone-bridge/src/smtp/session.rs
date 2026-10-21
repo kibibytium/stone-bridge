@@ -146,6 +146,7 @@ impl Session {
                 }
                 _ => bad_sequence("RCPT too early"),
             },
+            Command::Auth => Reply::new(235, "2.7.0 Authentication successful".to_string()),
             Command::Unknown(verb) => {
                 Reply::new(502, format!("5.5.2 Command not implemented: {}", verb))
             }
@@ -295,6 +296,7 @@ mod tests {
 
         let commands: Vec<&[u8]> = vec![
             b"EHLO test",
+            b"AUTH PLAIN LOGIN",
             b"MAIL FROM: sender@localhost",
             b"RCPT TO: recipient@localhost",
             b"DATA",
@@ -313,6 +315,10 @@ mod tests {
                                 from: "sender@localhost".to_string()
                             }
                         );
+                    }
+                    b"AUTH PLAIN LOGIN" => {
+                        assert_eq!(a.code, 235);
+                        assert_eq!(a.lines[0], "2.7.0 Authentication successful");
                     }
                     b"RCPT TO: recipient@localhost" => {
                         assert_eq!(a.code, 250);
