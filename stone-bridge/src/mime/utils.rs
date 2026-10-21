@@ -1,5 +1,5 @@
 use crate::logger::log;
-use crate::mime::message::{ContentTransferEncoding, ContentType};
+use crate::mime::message::ContentType;
 use crate::mime::{Body, COLON_BYTE, CRLF_BYTES, MimeEntity, MimeError};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 
@@ -112,20 +112,6 @@ pub fn normalize_cid(id: &str) -> &str {
     id.trim().trim_start_matches('<').trim_end_matches('>')
 }
 
-/// Decodes a leaf body according to its Content-Transfer-Encoding.
-pub fn decode_body(raw: &[u8], encoding: &ContentTransferEncoding) -> Result<String, MimeError> {
-    match encoding {
-        ContentTransferEncoding::SevenBit | ContentTransferEncoding::EightBit => {
-            Ok(String::from_utf8_lossy(raw).to_string())
-        }
-        ContentTransferEncoding::QuotedPrintable => {
-            let decoded = decode_quoted_printable(raw)?;
-            Ok(decoded)
-        }
-        ContentTransferEncoding::Base64 => Ok(String::from_utf8_lossy(raw).to_string()),
-    }
-}
-
 /// Decodes base64, ignoring the whitespace / line breaks used to wrap it.
 pub fn decode_base64(input: &[u8]) -> Result<Vec<u8>, MimeError> {
     let compact: Vec<u8> = input
@@ -134,6 +120,12 @@ pub fn decode_base64(input: &[u8]) -> Result<Vec<u8>, MimeError> {
         .filter(|c| !c.is_ascii_whitespace())
         .collect();
     STANDARD.decode(compact).map_err(MimeError::Base64Error)
+}
+
+pub fn clean_mime_base64(mime_base64: &str) -> String {
+    let split: Vec<&str> = mime_base64.split("\r\n").collect();
+    let no_crlf = split.join("");
+    no_crlf.chars().filter(|c| !c.is_whitespace()).collect()
 }
 
 // FIXME does not handle soft breaks

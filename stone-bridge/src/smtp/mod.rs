@@ -214,7 +214,7 @@ pub fn parse_address_name(line: String) -> String {
 
     let name_end_idx = rest.find(|c| c == '<');
     match name_end_idx {
-        Some(idx) => rest[..idx].trim_matches('"').to_string().trim().to_string(),
+        Some(idx) => rest[..idx].trim().trim_matches('"').to_string().to_string(),
         None => "".to_string(),
     }
 }
