@@ -8,7 +8,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y --no-install-recommends nodejs tini \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /stonebridge
 COPY tuta-bridge /stonebridge/tuta-bridge
 
 COPY stone-bridge/stonebridge /stonebridge/server
@@ -19,5 +18,9 @@ COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 RUN chown -R 1000:1000 /stonebridge
 
+RUN useradd -m mta
 USER mta
+ENV HOME=/home/mta
+WORKDIR /home/mta
+RUN mkdir -p /home/mta/.config/stonebridge
 ENTRYPOINT ["/usr/bin/tini", "--", "/entrypoint.sh"]
