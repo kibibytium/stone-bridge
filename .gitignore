@@ -2,3 +2,5 @@
 **/.idea/
 **/build/
 **/target/
+**/ci/stone-bridge/
+**/ci/tuta-bridge/
