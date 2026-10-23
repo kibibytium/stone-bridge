@@ -1,4 +1,6 @@
 {
+  "name": "tuta-bridge",
+  "version": "1.0.0-beta",
   "devDependencies": {
     "rolldown": "^1.2.12",
     "xhr2": "^0.2.1"
