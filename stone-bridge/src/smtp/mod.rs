@@ -1,14 +1,14 @@
+use crate::config::Config;
 use crate::logger::log;
 use crate::mail_dispatcher::Mailer;
+use crate::mime::utils::to_pre;
 use crate::mime::{Attachment, MimeError, ParsedMimeMessage};
 use crate::smtp::session::{Action, MessageOutcome, Reply, Session};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
-use std::path::PathBuf;
 use std::sync::Arc;
-use crate::config::Config;
 
 mod command;
 mod error;
@@ -153,13 +153,13 @@ fn prepare_mail(envelope: Envelope) -> Result<PendingMail, MimeError> {
     config_path.push("mime.txt");
     match File::create(&config_path).and_then(|mut f| f.write_all(&envelope.lines)) {
         Ok(()) => log::debug!("Done reading DATA and wrote data to file."),
-        Err(e) => log::warning!("Could not write mime.txt: {}", e),
+        Err(e) => log::warning!("Could not write {:?}: {}",&config_path, e),
     }
     match ParsedMimeMessage::try_from(envelope.lines.as_slice()) {
         Ok(parsed) => {
             let body = match parsed.html {
                 Some(html) => html,
-                None => parsed.text.unwrap_or_else(|| "".to_string()),
+                None => parsed.text.map(|t| to_pre(t.as_str())).unwrap_or_else(|| "".to_string()),
             };
 
             log::info!("parsing done, preparing mail");
@@ -225,7 +225,8 @@ pub fn parse_address_name(line: String) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::smtp::{parse_address_name, parse_cmd_address};
+    use crate::smtp::{parse_address_name, parse_cmd_address, Envelope, prepare_mail};
+    use crate::test_utils::get_mime_data;
 
     #[test]
     fn can_parse_address_from_smtp_cmd() {
@@ -251,5 +252,19 @@ mod tests {
         assert_eq!(parsed_name, "Sender Name");
         assert_eq!(parsed_empty, "");
         assert_eq!(parsed_no_brackets, "");
+    }
+
+    #[test]
+    fn wrap_text_in_pre() {
+        let lines = get_mime_data("simple-email.txt");
+        let envelope = Envelope {
+            from: "".to_string(),
+            recipients: vec![],
+            lines,
+        };
+
+        let pending_mail =prepare_mail(envelope).unwrap();
+        assert_eq!(pending_mail.body.as_str().matches("<pre>").count(), 1);
+        assert_eq!(pending_mail.body.as_str().matches("</pre>").count(), 1);
     }
 }

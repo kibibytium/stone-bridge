@@ -4,7 +4,7 @@ To: <test@test.de>
 Message-Id: <message-id@simple-server.de>
 MIME-Version: 1.0
 Subject: Test Email
-Content-Type: text/html; charset=utf-8
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 8bit
 
 This is a test

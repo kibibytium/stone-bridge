@@ -107,6 +107,14 @@ pub fn make_body(
     }
 }
 
+pub fn to_pre(text: &str) -> String {
+    let escaped = text
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;");
+    format!("<pre>{}</pre>", escaped)
+}
+
 /// Content-ID headers look like `<abc@host>`; html references `cid:abc@host`.
 pub fn normalize_cid(id: &str) -> &str {
     id.trim().trim_start_matches('<').trim_end_matches('>')

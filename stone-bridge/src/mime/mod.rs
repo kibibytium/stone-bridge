@@ -1,5 +1,5 @@
 mod message;
-mod utils;
+pub(crate) mod utils;
 
 use crate::mime::MimeError::InvalidMime;
 use crate::mime::message::{ContentDisposition, ContentTransferEncoding, ContentType};
@@ -8,10 +8,8 @@ use crate::mime::utils::{
     split_colon, split_crlf, split_headers_body,
 };
 use crate::smtp::parse_address_name;
-use base64::{Engine as _, engine::general_purpose::STANDARD};
 use core::str;
 use regex::{Captures, Regex};
-use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
 const CRLF_BYTES: &[u8] = b"\r\n";
@@ -471,7 +469,7 @@ mod tests {
             "<message-id@simple-server.de>",
             "1.0",
             "Test Email",
-            "text/html; charset=utf-8",
+            "text/plain; charset=utf-8",
             "8bit",
         ];
         assert_eq!(
