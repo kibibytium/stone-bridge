@@ -1,12 +1,14 @@
 use crate::logger::log;
 use crate::mail_dispatcher::Mailer;
-use crate::mime::{Attachment, MimeError, MimeMessage, ParsedMimeMessage};
+use crate::mime::{Attachment, MimeError, ParsedMimeMessage};
 use crate::smtp::session::{Action, MessageOutcome, Reply, Session};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
+use std::path::PathBuf;
 use std::sync::Arc;
+use crate::config::Config;
 
 mod command;
 mod error;
@@ -147,7 +149,9 @@ fn send(writer: &mut TcpStream, reply: &Reply) -> std::io::Result<()> {
 /// Dumps the message to `mime.txt` and extracts subject and body.
 fn prepare_mail(envelope: Envelope) -> Result<PendingMail, MimeError> {
     //FIXME test if this writes utf8
-    match File::create("mime.txt").and_then(|mut f| f.write_all(&envelope.lines)) {
+    let mut config_path = Config::get_config_dir();
+    config_path.push("mime.txt");
+    match File::create(&config_path).and_then(|mut f| f.write_all(&envelope.lines)) {
         Ok(()) => log::debug!("Done reading DATA and wrote data to file."),
         Err(e) => log::warning!("Could not write mime.txt: {}", e),
     }

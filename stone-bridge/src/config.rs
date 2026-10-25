@@ -50,7 +50,7 @@ impl Config {
         }
     }
 
-    fn get_config_dir() -> PathBuf {
+    pub fn get_config_dir() -> PathBuf {
         let config_path = env::var("HOME").unwrap_or("/root".to_string()) + "/.config/stonebridge/";
         PathBuf::from(config_path)
     }
