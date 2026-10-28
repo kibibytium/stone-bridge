@@ -3,10 +3,7 @@ pub(crate) mod utils;
 
 use crate::mime::MimeError::InvalidMime;
 use crate::mime::message::{ContentDisposition, ContentTransferEncoding, ContentType};
-use crate::mime::utils::{
-    clean_mime_base64, decode_base64, decode_quoted_printable, make_body, normalize_cid,
-    split_colon, split_crlf, split_headers_body,
-};
+use crate::mime::utils::{clean_mime_base64, decode_base64, decode_mime_subject, decode_quoted_printable, make_body, normalize_cid, split_colon, split_crlf, split_headers_body};
 use crate::smtp::parse_address_name;
 use core::str;
 use regex::{Captures, Regex};
@@ -206,8 +203,7 @@ impl MimeEntity {
                         ContentDisposition::Attachment => Err(InvalidMime),
                     },
                     None => {
-                        let decoded = decode_base64(raw)?;
-                        Ok(String::from_utf8_lossy(&decoded).to_string())
+                        decode_base64(raw)
                     }
                 },
             },
@@ -432,7 +428,7 @@ impl TryFrom<&[u8]> for ParsedMimeMessage {
         let message = MimeMessage::new(value)?;
         MimeMessage::make_parsed_mime_msg(&message.root, &mut parsed)?;
         parsed.inline_resources()?;
-        parsed.subject = message.subject();
+        parsed.subject = message.subject().map(|s|decode_mime_subject(s.as_str()));
         parsed.sender_name = message.sender_name();
         parsed.recipient_name = message.recipient_name();
         Ok(parsed)

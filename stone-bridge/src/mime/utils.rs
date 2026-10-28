@@ -33,6 +33,54 @@ pub fn split_headers_body(content: &[u8]) -> Result<(&[u8], &[u8]), MimeError> {
     Ok((&content[..idx + 2], &content[idx + 4..]))
 }
 
+/// Decodes RFC 2047 encoded-words in a header, e.g. "=?UTF-8?B?SGVsbG8=?= world".
+pub fn decode_mime_subject(subject: &str) -> String {
+    let mut out = String::new();
+    let mut rest = subject;
+    let mut prev_was_word = false;
+
+    while let Some(pos) = rest.find("=?") {
+        let (plain, candidate) = rest.split_at(pos);
+        match decode_word(candidate) {
+            Some((text, len)) => {
+                // Whitespace between two adjacent encoded-words is ignored.
+                if !(prev_was_word && plain.trim().is_empty()) {
+                    out.push_str(plain);
+                }
+                out.push_str(&text);
+                rest = &candidate[len..];
+                prev_was_word = true;
+            }
+            None => {
+                out.push_str(plain);
+                out.push_str("=?");
+                rest = &candidate[2..];
+                prev_was_word = false;
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+fn decode_word(s: &str) -> Option<(String, usize)> {
+    let mut parts = s.strip_prefix("=?")?.splitn(3, '?');
+    let charset = parts.next()?;
+    let enc = parts.next()?;
+    let tail = parts.next()?;
+    let end = tail.find("?=")?;
+    let text = &tail[..end];
+
+    let decoded = match enc {
+        "B" | "b" => decode_base64(text.as_bytes()).ok()?,
+        "Q" | "q" => decode_quoted_printable(text.replace('_', " ").as_bytes()).ok()?,
+        _ => return None,
+    };
+
+    let consumed = 2 + charset.len() + 1 + enc.len() + 1 + end + 2;
+    Some((decoded, consumed))
+}
+
 /// Splits a multipart body into its parts (RFC 2046 5.1.1).
 ///
 /// The preamble before the first delimiter and the epilogue after the
@@ -121,13 +169,13 @@ pub fn normalize_cid(id: &str) -> &str {
 }
 
 /// Decodes base64, ignoring the whitespace / line breaks used to wrap it.
-pub fn decode_base64(input: &[u8]) -> Result<Vec<u8>, MimeError> {
+pub fn decode_base64(input: &[u8]) -> Result<String, MimeError> {
     let compact: Vec<u8> = input
         .iter()
         .copied()
         .filter(|c| !c.is_ascii_whitespace())
         .collect();
-    STANDARD.decode(compact).map_err(MimeError::Base64Error)
+    STANDARD.decode(compact).map_err(MimeError::Base64Error).map(|s| String::from_utf8_lossy(&s).into_owned())
 }
 
 pub fn clean_mime_base64(mime_base64: &str) -> String {
@@ -233,7 +281,7 @@ mod tests {
     fn base64_ignores_line_wrapping() {
         assert_eq!(
             decode_base64(b"aGVs\r\nbG8g\r\nd29y\r\nbGQ=\r\n").unwrap(),
-            b"hello world"
+            "hello world"
         );
         assert!(matches!(
             decode_base64(b"!!!!"),
